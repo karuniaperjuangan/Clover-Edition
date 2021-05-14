@@ -3,8 +3,6 @@ import re
 
 import random
 import textwrap
-import os
-import sys
 
 from .getconfig import logger, settings, colors, ptcolors
 from shutil import get_terminal_size
@@ -21,68 +19,32 @@ def getTermWidth():
 termWidth = getTermWidth()
 
 
-def in_colab():
-    """Some terminal codes don't work in a colab notebook."""
-    # from https://github.com/tqdm/tqdm/blob/master/tqdm/autonotebook.py
-    if settings.getboolean("colab-mode"):
-        settings["prompt-toolkit"] = "off"
-        return True
-    try:
-        from IPython import get_ipython
-        if (not get_ipython()) or ('IPKernelApp' not in get_ipython().config):  # pragma: no cover
-            raise ImportError("console")
-        if 'VSCODE_PID' in os.environ:  # pragma: no cover
-            raise ImportError("vscode")
-    except ImportError:
-        if get_terminal_size()[0]==0 or 'google.colab' in sys.modules:
-            settings["colab-mode"] = "on"
-            settings["prompt-toolkit"] = "off"
-            return True
-        return False
-    else:
-        settings["colab-mode"] = "on"
-        settings["prompt-toolkit"] = "off"
-        return True
-
-
-def use_ptoolkit():
-    return not settings.getboolean("colab-mode") and settings.getboolean('prompt-toolkit')
-
-
 def clear_lines(n):
     """Clear the last line in the terminal."""
-    if in_colab() or settings.getboolean('colab-mode'):
-        # this wont work in colab etc
-        return
     screen_code = "\033[1A[\033[2K"  # up one line, and clear line
     for _ in range(n):
         print(screen_code, end="\r")
 
 
-if in_colab():
-    logger.warning("Colab mode enabled, disabling line clearing and readline to avoid colab bugs.")
-else:
+
+try:
+    from .inline_editor import edit_multiline
+    from prompt_toolkit import prompt as ptprompt
+    from prompt_toolkit import print_formatted_text
+    from prompt_toolkit.styles import Style
+    from prompt_toolkit.formatted_text import to_formatted_text, HTML
+
+    logger.info(
+        'Python Prompt Toolkit has been imported.')
+except (ImportError, ModuleNotFoundError):
     try:
-        if settings.getboolean('prompt-toolkit'):
-            from .inline_editor import edit_multiline
-            from prompt_toolkit import prompt as ptprompt
-            from prompt_toolkit import print_formatted_text
-            from prompt_toolkit.styles import Style
-            from prompt_toolkit.formatted_text import to_formatted_text, HTML
-        else:
-            raise ModuleNotFoundError
+        settings['prompt-toolkit'] = "off"
+        import readline
 
         logger.info(
-            'Python Prompt Toolkit has been imported. This enables a number of editing features but may cause bugs for colab users.')
+            'Readline has been imported.')
     except (ImportError, ModuleNotFoundError):
-        try:
-            settings['prompt-toolkit'] = "off"
-            import readline
-
-            logger.info(
-                'readline has been imported. This enables a number of editting features but may cause bugs for colab users.')
-        except (ImportError, ModuleNotFoundError):
-            pass
+        pass
 
 
 def pad_text(text, width, sep=' '):
@@ -174,7 +136,7 @@ def output(text1, col1=None,
            beg=None, end='\n', sep=' ',
            rem_beg_spaces=True):
     print('', end=beg)
-    ptoolkit = use_ptoolkit() and ptcolors['displaymethod'] == "prompt-toolkit"
+    ptoolkit = ptcolors['displaymethod'] == "prompt-toolkit"
 
     if wrap:
         width = settings.getint("text-wrap-width")
@@ -236,7 +198,7 @@ def input_bool(prompt, col1="default", default: bool = False):
     return val[0] == "y"
 
 def input_line(str, col1="default", default=""):
-    if use_ptoolkit() and ptcolors['displaymethod'] == "prompt-toolkit":
+    if ptcolors['displaymethod'] == "prompt-toolkit":
         col1 = ptcolors[col1] if col1 and ptcolors[col1] else ""
         val = ptprompt(to_formatted_text(str, col1), default=default)
     else:

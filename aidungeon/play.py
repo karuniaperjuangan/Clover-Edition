@@ -192,8 +192,7 @@ def new_story(generator, context, prompt, memory=None, first_result=None):
     context = context.strip()
     prompt = prompt.strip()
     erase = 0
-    if use_ptoolkit():
-        erase = output(context, 'user-text', prompt, 'user-text', sep="\n\n")
+    erase = output(context, 'user-text', prompt, 'user-text', sep="\n\n")
     story = Story(generator, context, memory)
     if first_result is None:
         story.act(prompt)
@@ -256,71 +255,7 @@ def load_story(f, gen):
 
 
 def alter_text(text):
-    if use_ptoolkit():
-        return edit_multiline(text).strip()
-
-    sentences = sentence_split(text)
-    while True:
-        output(" ".join(sentences), 'menu')
-        list_items(
-            [
-                "Edit a sentence.",
-                "Remove a sentence.",
-                "Add a sentence.",
-                "Edit entire prompt.",
-                "Save and finish."
-            ], 'menu')
-        try:
-            i = input_number(4)
-        except:
-            continue
-        if i == 0:
-            while True:
-                output("Choose the sentence you want to edit.", "menu")
-                list_items(sentences + ["(Back)"], "menu")
-                i = input_number(len(sentences), default=-1)
-                if i == len(sentences):
-                    break
-                else:
-                    output(sentences[i], 'menu')
-                    res = input_line("Enter the altered sentence: ", 'menu').strip()
-                    if len(res) == 0:
-                        output("Invalid sentence entered: returning to previous menu. ", 'error')
-                        continue
-                    sentences[i] = res
-        elif i == 1:
-            while True:
-                output("Choose the sentence you want to remove.", "menu")
-                list_items(sentences + ["(Back)"], "menu")
-                i = input_number(len(sentences), default=-1)
-                if i == len(sentences):
-                    break
-                else:
-                    del sentences[i]
-        elif i == 2:
-            while True:
-                output("Choose the sentence you want to insert after.", "menu")
-                list_items(["(Beginning)"] + sentences + ["(Back)"], "menu")
-                maxn = len(sentences) + 1
-                i = input_number(maxn, default=-1)
-                if i == maxn:
-                    break
-                else:
-                    res = input_line("Enter the new sentence: ", 'menu').strip()
-                    if len(res) == 0:
-                        output("Invalid sentence entered: returning to previous menu. ", 'error')
-                        continue
-                    sentences.insert(i, res)
-        elif i == 3:
-            output(" ".join(sentences), 'menu')
-            res = input_line("Enter the new altered prompt: ", 'menu').strip()
-            if len(res) == 0:
-                output("Invalid prompt entered: returning to previous menu. ", 'error')
-                continue
-            sentences = sentence_split(res)
-        elif i == 4:
-            break
-    return " ".join(sentences).strip()
+    return edit_multiline(text).strip()
 
 
 class GameManager:
@@ -353,14 +288,10 @@ class GameManager:
                     Path("interface/", "prompt-instructions.txt"), "r", encoding="utf-8"
             ) as file:
                 output(file.read(), "instructions", wrap=False)
-            if use_ptoolkit():
-                output("Context>", "main-prompt")
-                self.context = edit_multiline()
-                output("Prompt>", "main-prompt")
-                self.prompt = edit_multiline()
-            else:
-                self.context = input_line("Context> ", "main-prompt")
-                self.prompt = input_line("Prompt> ", "main-prompt")
+            output("Context>", "main-prompt")
+            self.context = edit_multiline()
+            output("Prompt>", "main-prompt")
+            self.prompt = edit_multiline()
             filename = input_line("Name to save prompt as? (Leave blank for no save): ", "query")
             filename = re.sub("-$", "", re.sub("^-", "", re.sub("[^a-zA-Z0-9_-]+", "-", filename)))
             if filename != "":
@@ -625,10 +556,6 @@ class GameManager:
             d = random.randint(1, 20)
             logger.debug("roll d20=%s", d)
 
-            # Add the "you" if it's not prompt-toolkit
-            if not use_ptoolkit():
-                action = re.sub("^(?: *you +)*(.+)$", "You \\1", action, flags=re.I)
-
             sugg_action_regex = re.search(r"^(?: *you +)?([0-9]+)$", action, flags=re.I)
             user_speech_regex = re.search(r"^(?: *you +say +)?([\"'].*[\"'])$", action, flags=re.I)
             user_action_regex = re.search(r"^(?: *you +)(.+)$", action, flags=re.I)
@@ -716,13 +643,10 @@ class GameManager:
             bell()
             print()
 
-            if use_ptoolkit():
-                action = input_line("> ", "main-prompt", default="%s" % "You ")
-            else:
-                action = input_line("> You ", "main-prompt")
+            action = input_line("> ", "main-prompt", default="%s" % "You ")
 
             # Clear suggestions and user input
-            if act_alts and not in_colab():
+            if act_alts:
                 clear_lines(action_suggestion_lines + 2)
 
             # Users can type in "/command", or "You /command" if prompt_toolkit is on and they left the "You" in

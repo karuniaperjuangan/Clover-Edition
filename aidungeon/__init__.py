@@ -22,15 +22,6 @@ def print_intro():
            "or email cloveranon@nuke.africa for bug reports, help, and feature requests.",
            'subsubtitle', end="\n\n")
 
-if not use_ptoolkit() and os.name == 'nt':
-    import ctypes
-    kernel32 = ctypes.windll.kernel32
-    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-    output("INFO: ANSI escape sequence enabled")
-
-
-logger.info("Colab detected: {}".format(in_colab()))
-
 
 if not Path("prompts", "Anime").exists():
     try:
